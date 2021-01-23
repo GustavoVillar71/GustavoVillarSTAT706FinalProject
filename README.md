@@ -1,0 +1,2 @@
+# GustavoVillarSTAT706FinalProject
+This project is based on the 1985 Ward's Automotive Yearbook dataset which is composed of small to midsized sedans sold in North America. This dataset was used to assist car manufacturers in deciding what factors are the most important in determining the price of a vehicle. I explored all variables present in the dataset to determine which variables are the most significant using model selection methods such as AIC and Adjusted R-Squared. 
