@@ -1,0 +1,204 @@
+---
+title: "Final Project Version 2 STAT 706"
+author: "Gustavo Villar"
+date: "11/22/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Problem: 
+Determine which predictors in this dataset are the most important for determining the price of a vehicle. 
+
+```{r}
+#Let's see what we are dealing with here: 
+library(readxl)
+CarPrice_Prediction <- read_excel("~/STAT 706/Cars Linear Regression PRICE/CarPrice_Prediction.xlsx")
+summary(CarPrice_Prediction)
+head(CarPrice_Prediction)
+```
+
+DATA CLEANING: 
+So I noticed some spelling mistakes under our CarName. Let's fix these mistakes. Additionally, I also notice that under CarName, we do see the specific model. While I do know that this might be a good indicator of price, I think using car BRAND will be more helpful in grouping our data. This is because then we can really distinguish the brand's luxury status from the inexpensive vehicles. It will allow us to see the difference between the Toyota brand vs BMW brand, rather than a Toyota Corolla vs a BMW X6.  
+```{r}
+#Here we extract the first word of the column in CarName and put into a new column called CarBrand
+CarPrice_Prediction$CarBrand <- gsub("([A-Za-z]+).*", "\\1", CarPrice_Prediction$CarName)
+
+#Here we just fix the spelling mistakes
+CarPrice_Prediction$CarBrand <- gsub("maxda", "mazda", CarPrice_Prediction$CarBrand)
+CarPrice_Prediction$CarBrand <- gsub("Nissan", "nissan", CarPrice_Prediction$CarBrand)
+CarPrice_Prediction$CarBrand <- gsub("porcshce", "porsche", CarPrice_Prediction$CarBrand)
+CarPrice_Prediction$CarBrand <- gsub("toyouta", "toyota", CarPrice_Prediction$CarBrand)
+CarPrice_Prediction$CarBrand <- gsub("vokswagen", "volkswagen", CarPrice_Prediction$CarBrand)
+CarPrice_Prediction$CarBrand <- gsub("vw", "volkswagen", CarPrice_Prediction$CarBrand)
+
+
+unique(CarPrice_Prediction$CarBrand)
+
+#Using unique, we can see every unique car brand name. We see that there are no repeats. 
+
+
+```
+
+Let's find any empty values. 
+```{r}
+dataframe <- data.frame()
+is.na(dataframe)
+#There are none. Yay!
+```
+
+Let's explore our data visually.  
+
+```{r}
+library(ggplot2)
+ggplot(aes(x = reorder(CarBrand, price), price), data = CarPrice_Prediction) + stat_summary(fun.y = "mean", geom = "bar", width = 0.4) + theme(axis.text.x = element_text(face = "bold", color = "Black", size = 9, angle = 90)) + ggtitle (" Plot of Mean Car Prices by Brand")
+#Here we can see that Buick, Jaguar, BMW and Porsche hold the highest prices. 
+#This would definitely be a cleaner way of showing our data visually rather than using car name's specifically. Since we group by brands, we can see the average price of the cars of each brand. 
+```
+```{r}
+library(faraway)
+library(RColorBrewer)
+coul <- brewer.pal(5, "Set2") 
+#Let's do the rest of the categorical variables: 
+pie(table(CarPrice_Prediction$fueltype), col = c("Red", "Blue"), main = "Pie Chart for Fuel Types")
+
+barplot(sort(table(CarPrice_Prediction$aspiration), decreasing = TRUE), las = 1, col = c("Dark Green", "Purple"), main = "Barplot for Aspiration Types")
+
+pie(table(CarPrice_Prediction$doornumber), col = c("Red", "Green"), main = "Pie Chart for Number of Doors")
+
+barplot(sort(table(CarPrice_Prediction$carbody), decreasing = TRUE), las = 1, col = coul , main = "Barplot for Types of Car Bodies")
+
+pie(table(CarPrice_Prediction$drivewheel), col = coul, main = "Pie Chart for Type of Drive Wheel")
+
+barplot(sort(table(CarPrice_Prediction$enginelocation), decreasing = TRUE), las = 1, col = c("Blue", "Green"), main = "Barplot for the Location of an Engine")
+
+pie(table(CarPrice_Prediction$enginetype), col = coul, main = "Pie Chart for Engine Types")
+
+barplot(sort(table(CarPrice_Prediction$fuelsystem), decreasing = TRUE), las = 1, col = coul, main = "Barplot for Types of Fuel Systems")
+
+barplot(sort(table(CarPrice_Prediction$cylindernumber), decreasing = TRUE), las = 1, col = coul, main = "Barplot for Number of Cylinders")
+
+```
+I think it is also important to see our quantitative variables visually as well.
+```{r}
+library(faraway)
+library(RColorBrewer)
+coul <- brewer.pal(5, "Set2") 
+hist(CarPrice_Prediction$price, main = "Price Distribution", xlab = "Price", col = "Black", breaks = 15)
+hist(CarPrice_Prediction$wheelbase, main = "Wheelbase Distribution", xlab = "Wheelbase", col = "Black", breaks = 15)
+hist(CarPrice_Prediction$carlength, main = "Car Length Distribution", xlab = "Car Length", col = "Black", breaks = 15)
+hist(CarPrice_Prediction$carwidth, main = "Car Width Distribution", xlab = "Car Width", col = "Black", breaks = 15)
+hist(CarPrice_Prediction$carheight, main = "Car Height Distribution", xlab = "Car Height", col = "Black", breaks = 15)
+hist(CarPrice_Prediction$curbweight, main = "Curb Weight Distribution", xlab = "Curb Weight", col = "Black", breaks = 15)
+hist(CarPrice_Prediction$enginesize, main = "Engine Size Distribution", xlab = "Engine Size", col = "Black", breaks = 15)
+hist(CarPrice_Prediction$boreratio, main = "Bore Ratio Distribution", xlab = "Bore Ratio", col = "Black", breaks = 15)
+hist(CarPrice_Prediction$stroke, main = "Stroke Distribution", xlab = "Stroke Distribution", col = "Black", breaks = 15)
+hist(CarPrice_Prediction$compressionratio, main = "Compression Ratio Distribution", xlab = "Compression Ratio", col = "Black", breaks = 15)
+hist(CarPrice_Prediction$horsepower, main = "Horsepower Distribution", xlab = "Horsepower", col = "Black", breaks = 15)
+hist(CarPrice_Prediction$peakrpm, main = "Peak RPM Distribution", xlab = "Peak RPM", col = "Black", breaks = 15)
+hist(CarPrice_Prediction$citympg, main = "City MPG Distribution", xlab = "City MPG", col = "Black", breaks = 15)
+hist(CarPrice_Prediction$highwaympg, main = "Highway MPG Distribution", xlab = "Highway MPG", col = "Black", breaks = 20)
+
+```
+
+
+
+Next, let's create a large model and then work out way down. However, I want to remove car ID from our model because I know this will definitely not help us in explain the prices of our cars because it is simply just there in numerical order. With this large model, I can see which variables are the most important. 
+```{r}
+BigModel <- lm(CarPrice_Prediction$price ~ symboling + CarBrand + fueltype + aspiration + doornumber + carbody + drivewheel + enginelocation + wheelbase + carlength + carwidth + carheight + curbweight + enginetype + cylindernumber + enginesize + fuelsystem + boreratio + stroke + compressionratio + horsepower +peakrpm + citympg + highwaympg, CarPrice_Prediction)
+
+summary(BigModel)
+```
+I noticed that there are some N/A available in this summary. I took note of this and decided that I remove only two rows, which had very unique number of cylinders. There was only one of a kind for both 3 and 12 cylinder cars. So I think it is imperative to remove these since they are rare to find in vehicles. 
+
+I will create the average price per cylinder plot to investigate the N/A values in the cylinder number variable. 
+```{r}
+library(ggplot2)
+ggplot(aes(x = reorder(cylindernumber, price), price), data = CarPrice_Prediction) + stat_summary(fun.y = "mean", geom = "bar", width = 0.4) + theme(axis.text.x = element_text(face = "bold", color = "Black", size = 9, angle = 90)) + ggtitle (" Plot of Mean Car Prices by Number of Cylinders") 
+```
+
+
+```{r}
+# Let's remove row number 19 and 50. The reason I removed these is because they are unique in the sense that because cylindernumbers are an important variable, I do not want any "rare" cylinder numbers like 3 or 12. 
+Data2 <- CarPrice_Prediction[-c(19,50),]
+Data2$CarBrand <- relevel(factor(Data2$CarBrand), "toyota")
+
+#Here, I releveled our data so when the summary table prints, the coefficients can be read with respect to a Toyota rather than an Alfa Romeo. 
+```
+
+```{r}
+# We have to recreate a Big Model because we removed some rows. 
+BigModel2 <- lm(Data2$price ~ symboling + CarBrand + fueltype + aspiration + doornumber + carbody + drivewheel + enginelocation + wheelbase + carlength + carwidth + carheight + curbweight + enginetype + cylindernumber + enginesize + fuelsystem + boreratio + stroke + compressionratio + horsepower +peakrpm + citympg + highwaympg, Data2)
+
+# I used the step function on the large model. This uses stepwise and AIC to determine the best predictors for my model. 
+smallmodel2 <- step(BigModel2, trace = TRUE)
+```
+
+```{r}
+summary(smallmodel2)
+```
+
+```{r}
+plot(smallmodel2)
+```
+
+
+```{r}
+smallmodel3 <- lm(Data2$price ~ CarBrand + enginetype + curbweight + enginesize + peakrpm + cylindernumber, Data2)
+
+anova(smallmodel2, smallmodel3, test = "F")
+```
+I ran an F-test to see significance of these 6 variables that I chose. 
+This test is indicating that the smaller model that I selected is significant. 
+
+```{r}
+summary(smallmodel3)
+plot(smallmodel3)
+```
+
+```{r}
+smallmodel4 <- lm(Data2$price ~ CarBrand + enginetype + curbweight + enginesize + peakrpm, Data2)
+anova(smallmodel4, smallmodel3, test = "F")
+```
+
+I think while number of cylinders is significant, we can still explain a majority of our data with just our fourth small model, where the variables are: CarBrand, enginetype, curbweight, enginesize, and peakRPM. 
+This is because a large engine tends to have a large number of cylinders, so price would be better explained by enginesize instead. 
+
+```{r}
+plot(smallmodel4)
+summary(smallmodel4)
+```
+ 
+By looking at the adjusted R-squared, I can still explain 93% of my data with just these 5 variables. 
+
+I will create another scatterplot for price ~ peakrpm to see what the relationship is with price.
+```{r}
+plot(Data2$peakrpm ~ Data2$price, xlab = "Peak RPM", ylab = "Price", main = "Scatterplot of PeakRPM vs Price")
+#Since this scatterplot doesn't really seem to indicate a relationship with price, I believe it is safe to remove this variable as well. 
+```
+
+```{r}
+# Let's use an F-test to see if peakRPM is helpful for our model. 
+smallmodel5 <- lm(Data2$price ~ CarBrand + enginetype + curbweight + enginesize, Data2)
+
+anova(smallmodel4, smallmodel5, test = "F")
+```
+
+```{r}
+summary(smallmodel5)
+plot(smallmodel5)
+```
+
+```{r}
+# correlation between curbweight and carlength
+cor(Data2$curbweight, Data2$carlength)
+
+```
+
+```{r}
+plot(Data2$enginesize ~ Data2$price, xlab = "Engine Size", ylab = "Price", main = "Scatterplot of Engine Size vs Price")
+# This is just a scatterplot to see the relationship between engine size and price. 
+```
+
+
